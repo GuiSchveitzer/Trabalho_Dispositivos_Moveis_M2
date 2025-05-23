@@ -143,48 +143,39 @@ public class MainActivity extends AppCompatActivity {
 
 
     private String downloadAndSaveImage(String imageUrl, String imageName) {
+        File picturesDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        if (picturesDir == null) return "";
+
+        File imageFile = new File(picturesDir, imageName + ".png");
+
         try {
-            // Validate input
+            // Validar URL
             if (imageUrl == null || imageUrl.isEmpty()) {
                 Log.e("DEBUG_IMAGE", "URL da imagem vazia para: " + imageName);
-                return "";
+                return imageFile.exists() ? imageFile.getAbsolutePath() : "";
             }
 
-            // Construct the full URL with the correct base
+            // Montar URL completa
             String fullImageUrl = "https://raw.githubusercontent.com/rafaelpm0/data_mobile_2/main/" + imageUrl;
-            Log.d("DEBUG_IMAGE_URL", "Tentando baixar de: " + fullImageUrl);
+            Log.d("DEBUG_IMAGE", "Tentando baixar de: " + fullImageUrl);
 
-            // Create URL connection
+            // Abrir conexão
             URL url = new URL(fullImageUrl);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
-            connection.setConnectTimeout(5000); // 5 seconds timeout
+            connection.setConnectTimeout(5000);
             connection.setReadTimeout(5000);
             connection.setDoInput(true);
 
-            // Check response code
             int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                Log.e("DEBUG_IMAGE", "Erro HTTP " + responseCode + " ao baixar imagem: " + imageName + " (URL: " + fullImageUrl + ")");
+                Log.e("DEBUG_IMAGE", "Erro HTTP " + responseCode + " ao baixar imagem: " + imageName);
                 connection.disconnect();
-                return "";
+                // Fallback: usar local se existir
+                return imageFile.exists() ? imageFile.getAbsolutePath() : "";
             }
 
-            // Create the Pictures directory if it doesn't exist
-            File picturesDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-            if (picturesDir != null && !picturesDir.exists()) {
-                if (!picturesDir.mkdirs()) {
-                    Log.e("DEBUG_IMAGE", "Falha ao criar diretório: " + picturesDir.getAbsolutePath());
-                    connection.disconnect();
-                    return "";
-                }
-            }
-
-            // Define output file
-            File imageFile = new File(picturesDir, imageName + ".png");
-            Log.d("DEBUG_IMAGE", "Salvando imagem em: " + imageFile.getAbsolutePath());
-
-            // Download and save the image
+            // Salvar imagem
             try (InputStream inputStream = new BufferedInputStream(connection.getInputStream());
                  FileOutputStream outputStream = new FileOutputStream(imageFile)) {
                 byte[] buffer = new byte[1024];
@@ -192,36 +183,27 @@ public class MainActivity extends AppCompatActivity {
                 while ((bytesRead = inputStream.read(buffer)) != -1) {
                     outputStream.write(buffer, 0, bytesRead);
                 }
-                outputStream.flush();
             }
 
-            // Verify the file was saved
-            if (!imageFile.exists() || imageFile.length() == 0) {
-                Log.e("DEBUG_IMAGE", "Arquivo de imagem vazio ou não criado: " + imageFile.getAbsolutePath());
-                connection.disconnect();
-                return "";
-            }
-
-            // Decode the file to ensure it's a valid image
+            // Verificar imagem válida
             Bitmap bitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
             if (bitmap == null) {
-                Log.e("DEBUG_IMAGE", "Falha ao decodificar imagem: " + imageFile.getAbsolutePath());
-                if (imageFile.exists()) {
-                    imageFile.delete(); // Delete invalid file
-                }
-                connection.disconnect();
+                Log.e("DEBUG_IMAGE", "Imagem inválida. Excluindo arquivo.");
+                if (imageFile.exists()) imageFile.delete();
                 return "";
             }
 
             connection.disconnect();
-            Log.d("DEBUG_IMAGE", "Imagem salva com sucesso: " + imageFile.getAbsolutePath());
             return imageFile.getAbsolutePath();
+
         } catch (Exception e) {
-            Log.e("DEBUG_IMAGE", "Erro ao baixar/salvar imagem " + imageName + ": " + e.getMessage());
+            Log.e("DEBUG_IMAGE", "Erro ao baixar imagem " + imageName + ": " + e.getMessage());
             e.printStackTrace();
-            return "";
+            // Fallback: usar local se existir
+            return imageFile.exists() ? imageFile.getAbsolutePath() : "";
         }
     }
+
 
     private void displayItems() {
         linearLayoutCursos.removeAllViews();
