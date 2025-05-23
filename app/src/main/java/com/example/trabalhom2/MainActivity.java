@@ -205,6 +205,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+
     private void displayItems() {
         linearLayoutCursos.removeAllViews();
         Cursor cursor = dbHelper.getAllItems();
